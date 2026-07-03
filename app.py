@@ -12,8 +12,10 @@ URL_NUBE = os.environ.get('DATABASE_URL')
 
 if URL_NUBE:
     import psycopg2
+    import psycopg2.extras
     def conectar():
-        return psycopg2.connect(URL_NUBE)
+        # Agregamos sslmode para asegurar la conexión con Neon
+        return psycopg2.connect(URL_NUBE, sslmode='require')
 else:
     import mysql.connector
     def conectar():
@@ -42,7 +44,9 @@ def menu_principal():
 @app.route('/artesanos', methods=['GET', 'POST'])
 def artesanos():
     conexion = conectar()
-    cursor = conexion.cursor()
+    # Si está en la nube, configuramos el cursor para evitar problemas de compatibilidad con las tuplas
+    cursor = conexion.cursor(cursor_factory=psycopg2.extras.DictCursor) if URL_NUBE else conexion.cursor()
+    
     if request.method == 'POST':
         accion = request.form.get('accion')
         id_artesano = request.form.get('id_artesano')
@@ -69,10 +73,13 @@ def artesanos():
             cursor.execute(sql, (id_artesano,))
             flash("Registro eliminado correctamente")
         conexion.commit()
+        cursor.close()
+        conexion.close()
         return redirect(url_for('artesanos'))
 
     cursor.execute("SELECT * FROM artesanos")
-    registros = cursor.fetchall()
+    # Convertimos a tuplas tradicionales si usamos DictCursor para mantener compatibilidad con el HTML anterior
+    registros = [tuple(r) for r in cursor.fetchall()] if URL_NUBE else cursor.fetchall()
     cursor.close()
     conexion.close()
     return render_template('artesanos.html', registros=registros)
@@ -80,7 +87,8 @@ def artesanos():
 @app.route('/productos', methods=['GET', 'POST'])
 def productos():
     conexion = conectar()
-    cursor = conexion.cursor()
+    cursor = conexion.cursor(cursor_factory=psycopg2.extras.DictCursor) if URL_NUBE else conexion.cursor()
+    
     if request.method == 'POST':
         accion = request.form.get('accion')
         id_producto = request.form.get('id_producto')
@@ -95,7 +103,7 @@ def productos():
             cursor.execute(sql, (id_producto, id_artesano, id_categoria, nombre_producto, descripcion_producto, precio))
             flash("Producto agregado correctamente")
         elif accion == 'modificar':
-            sql = "UPDATE productos SET id_artesano=%s, id_categoria=%s, text_producto=%s, descripcion_producto=%s, precio=%s WHERE id_producto=%s" if URL_NUBE else "UPDATE productos SET id_artesano=%s, id_categoria=%s, nombre_producto=%s, descripcion_producto=%s, precio=%s WHERE id_producto=%s"
+            sql = "UPDATE productos SET id_artesano=%s, id_categoria=%s, nombre_producto=%s, descripcion_producto=%s, precio=%s WHERE id_producto=%s"
             cursor.execute(sql, (id_artesano, id_categoria, nombre_producto, descripcion_producto, precio, id_producto))
             flash("Producto modificado correctamente")
         elif accion == 'eliminar':
@@ -103,10 +111,12 @@ def productos():
             cursor.execute(sql, (id_producto,))
             flash("Producto eliminado correctamente")
         conexion.commit()
+        cursor.close()
+        conexion.close()
         return redirect(url_for('productos'))
 
     cursor.execute("SELECT * FROM productos")
-    registros = cursor.fetchall()
+    registros = [tuple(r) for r in cursor.fetchall()] if URL_NUBE else cursor.fetchall()
     cursor.close()
     conexion.close()
     return render_template('productos.html', registros=registros)
@@ -114,7 +124,8 @@ def productos():
 @app.route('/categorias', methods=['GET', 'POST'])
 def categorias():
     conexion = conectar()
-    cursor = conexion.cursor()
+    cursor = conexion.cursor(cursor_factory=psycopg2.extras.DictCursor) if URL_NUBE else conexion.cursor()
+    
     if request.method == 'POST':
         accion = request.form.get('accion')
         id_categoria = request.form.get('id_categoria')
@@ -133,14 +144,16 @@ def categorias():
             cursor.execute(sql, (id_categoria,))
             flash("Categoría eliminada correctamente")
         conexion.commit()
+        cursor.close()
+        conexion.close()
         return redirect(url_for('categorias'))
 
     cursor.execute("SELECT * FROM categorias")
-    registros = cursor.fetchall()
+    registros = [tuple(r) for r in cursor.fetchall()] if URL_NUBE else cursor.fetchall()
     cursor.close()
     conexion.close()
     return render_template('categorias.html', registros=registros)
 
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=puerto)
+    app.run(debug=True, host="0.0.0.0", port=puerto)0.0", port=puerto)
