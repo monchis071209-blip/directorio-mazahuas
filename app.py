@@ -5,6 +5,9 @@ import json
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_mazahuas'
 
+# Línea clave para que Vercel lo encuentre de inmediato:
+application = app
+
 # ==========================================
 # CONEXIÓN INTELIGENTE (LOCAL O INTERNET)
 # ==========================================
@@ -153,9 +156,6 @@ def categorias():
     cursor.close()
     conexion.close()
     return render_template('categorias.html', registros=registros)
-
-# Línea necesaria para Vercel
-app = app
 
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
